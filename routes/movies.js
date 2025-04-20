@@ -3,12 +3,31 @@ const router = express.Router();
 const Movie = require('../models/Movie');
 const Review = require('../models/Review');
 const tmdbApi = require('../utils/tmdbApi');
+const auth = require('../middleware/auth');
 
 // @route   GET api/movies
 // @desc    Get all movies from the database
 router.get('/', async (req, res) => {
   try {
-    const movies = await Movie.find().sort({ title: 1 });
+    // Support sorting options
+    const sortOption = req.query.sort || 'title';
+    let sortQuery = {};
+    
+    switch(sortOption) {
+      case 'rating':
+        sortQuery = { averageRating: -1 };
+        break;
+      case 'newest':
+        sortQuery = { releaseYear: -1 };
+        break;
+      case 'oldest':
+        sortQuery = { releaseYear: 1 };
+        break;
+      default:
+        sortQuery = { title: 1 };
+    }
+    
+    const movies = await Movie.find().sort(sortQuery);
     res.json(movies);
   } catch (err) {
     console.error(err.message);
@@ -156,10 +175,40 @@ router.get('/:id', async (req, res) => {
 // @desc    Get movies by genre
 router.get('/genre/:genre', async (req, res) => {
   try {
-    const movies = await Movie.find({ genres: req.params.genre }).sort({ title: 1 });
-    res.json(movies);
+    // Get the requested genre from the URL param
+    const genreName = req.params.genre;
+    
+    // Support pagination for large genre collections
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    // Find movies by genre (case-insensitive search)
+    const genreRegex = new RegExp(genreName, 'i');
+    
+    // First, count total matching documents
+    const total = await Movie.countDocuments({ 
+      genres: { $elemMatch: { $regex: genreRegex } }
+    });
+    
+    // Then get paginated result
+    const movies = await Movie.find({ 
+      genres: { $elemMatch: { $regex: genreRegex } }
+    })
+    .sort({ averageRating: -1 }) // Sort by rating
+    .skip(skip)
+    .limit(limit);
+    
+    // Return with pagination metadata
+    res.json({
+      movies,
+      page,
+      totalPages: Math.ceil(total / limit),
+      totalResults: total,
+      genre: genreName
+    });
   } catch (err) {
-    console.error(err.message);
+    console.error('Error fetching movies by genre:', err.message);
     res.status(500).send('Server Error');
   }
 });

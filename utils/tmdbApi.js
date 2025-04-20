@@ -86,12 +86,48 @@ const getMovieDetails = async (id) => {
  */
 const getMoviesByGenre = async (genreId, page = 1) => {
   try {
+    console.log(`Fetching movies by genre ID ${genreId}, page ${page}`);
     const response = await axios.get(
-      `${BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${genreId}&page=${page}`
+      `${BASE_URL}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${genreId}&page=${page}&sort_by=popularity.desc`
     );
     return response.data;
   } catch (error) {
     console.error('Error fetching movies by genre:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all available genres from TMDb
+ * @returns {Promise} - Promise with genre list
+ */
+const getGenres = async () => {
+  try {
+    console.log('Fetching movie genres list');
+    const response = await axios.get(
+      `${BASE_URL}/genre/movie/list?api_key=${TMDB_API_KEY}`
+    );
+    return response.data.genres;
+  } catch (error) {
+    console.error('Error fetching genres:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Get popular movies
+ * @param {number} page - Page number for results
+ * @returns {Promise} - Promise with popular movies
+ */
+const getPopularMovies = async (page = 1) => {
+  try {
+    console.log(`Fetching popular movies, page ${page}`);
+    const response = await axios.get(
+      `${BASE_URL}/movie/popular?api_key=${TMDB_API_KEY}&page=${page}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching popular movies:', error.message);
     throw error;
   }
 };
@@ -142,5 +178,7 @@ module.exports = {
   searchMovies,
   getMovieDetails,
   getMoviesByGenre,
-  formatMovie
+  formatMovie,
+  getGenres,
+  getPopularMovies
 };
